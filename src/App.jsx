@@ -98,13 +98,13 @@ export default function App() {
 
           <div className="flex items-center gap-2">
             <a
-              href="https://github.com/karpathy/LLM101n"
+              href="https://github.com/idkzd/eureka-labs-token-embeddings-viz"
               target="_blank"
               rel="noreferrer"
               className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-slate-800 hover:border-slate-600"
             >
               <GitFork size={13} />
-              LLM101n
+              idkzd
             </a>
             <button
               onClick={() => setSidebarOpen(true)}
@@ -341,15 +341,19 @@ export default function App() {
         <footer className="text-center pb-8">
           <div className="text-xs text-slate-600">
             Built with{' '}
-            <span style={{ color: '#ffad11' }}>♥</span>{' '}
-            inspired by{' '}
+            <span style={{ color: '#ffad11' }}>♥</span>{' '}by{' '}
+            <a href="https://github.com/idkzd" target="_blank" rel="noreferrer"
+              className="hover:underline font-semibold" style={{ color: '#ffad11' }}>
+              idkzd
+            </a>
+            {' '}· Inspired by{' '}
             <a href="https://github.com/karpathy/LLM101n" target="_blank" rel="noreferrer"
-              className="hover:underline" style={{ color: '#ffad11' }}>
-              Andrej Karpathy's LLM101n
+              className="hover:underline" style={{ color: '#818cf8' }}>
+              Andrej Karpathy’s LLM101n
             </a>
             {' '}· Powered by{' '}
             <a href="https://github.com/niieani/gpt-tokenizer" target="_blank" rel="noreferrer"
-              className="hover:underline" style={{ color: '#818cf8' }}>
+              className="hover:underline" style={{ color: '#34d399' }}>
               gpt-tokenizer
             </a>
           </div>
