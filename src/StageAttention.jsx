@@ -1,11 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 
 export default function StageAttention({ tokens }) {
   const [activeIdx, setActiveIdx] = useState(tokens.length - 1);
+  const [hoveredKey, setHoveredKey] = useState(null); // which source token is hovered in the table
 
   useEffect(() => {
     setActiveIdx(tokens.length - 1);
+    setHoveredKey(null);
   }, [tokens.length]);
 
   if (!tokens.length) {
@@ -20,20 +22,22 @@ export default function StageAttention({ tokens }) {
     <div className="space-y-6">
       <p className="text-sm text-slate-400">
         In the <span className="text-orange font-semibold">self-attention</span> layer, each token attends to
-        all previous tokens in the context window. Lines show attention connections — click a token to inspect
-        its context.
+        all previous tokens in the context window. Click a token to inspect its context.{' '}
+        <span className="text-slate-500">Hover a row to highlight its arc.</span>
       </p>
 
-      {/* Token row with attention lines */}
+      {/* Arc canvas + token buttons */}
       <div className="relative">
-        <AttentionCanvas tokens={tokens} activeIdx={activeIdx} />
-
-        {/* Clickable tokens */}
+        <AttentionCanvas
+          tokens={tokens}
+          activeIdx={activeIdx}
+          hoveredKey={hoveredKey}
+        />
         <div className="flex flex-wrap gap-3 justify-center pt-4">
           {tokens.map((token, i) => (
             <motion.button
               key={i}
-              onClick={() => setActiveIdx(i)}
+              onClick={() => { setActiveIdx(i); setHoveredKey(null); }}
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.95 }}
               className="px-4 py-2 rounded-lg border font-semibold text-sm transition-all duration-200 cursor-pointer"
@@ -54,15 +58,26 @@ export default function StageAttention({ tokens }) {
       <div className="rounded-xl border border-slate-800 overflow-hidden">
         <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 text-xs text-slate-400 font-semibold uppercase tracking-widest">
           Attention Weights for "{tokens[activeIdx]?.text}"
+          <span className="ml-2 text-slate-600 normal-case font-normal">— hover a row to highlight arc</span>
         </div>
         <div className="divide-y divide-slate-800">
           {tokens.slice(0, activeIdx + 1).map((t, i) => {
             const weight = computeWeight(activeIdx, i, tokens.length);
+            const isHovered = hoveredKey === i;
             return (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+              <motion.div
+                key={i}
+                className="flex items-center gap-3 px-4 py-2.5 cursor-default"
+                onMouseEnter={() => setHoveredKey(i)}
+                onMouseLeave={() => setHoveredKey(null)}
+                animate={{
+                  background: isHovered ? 'rgba(255,173,17,0.06)' : 'transparent',
+                }}
+                transition={{ duration: 0.15 }}
+              >
                 <span
-                  className="text-sm font-mono font-semibold w-20 shrink-0"
-                  style={{ color: t.color.text }}
+                  className="text-sm font-mono font-semibold w-20 shrink-0 transition-colors duration-150"
+                  style={{ color: isHovered ? tokens[activeIdx].color.text : t.color.text }}
                 >
                   {t.text}
                 </span>
@@ -72,44 +87,55 @@ export default function StageAttention({ tokens }) {
                     initial={{ width: 0 }}
                     animate={{ width: `${weight * 100}%` }}
                     transition={{ duration: 0.6, delay: i * 0.05 }}
-                    style={{ background: tokens[activeIdx].color.border }}
+                    style={{
+                      background: isHovered
+                        ? `linear-gradient(90deg, #ffad11, #f59e0b)`
+                        : tokens[activeIdx].color.border,
+                      opacity: isHovered ? 1 : 0.7,
+                    }}
                   />
                 </div>
-                <span className="text-xs mono text-slate-500 w-10 text-right">{weight.toFixed(2)}</span>
-              </div>
+                <span
+                  className="text-xs mono w-10 text-right transition-colors duration-150"
+                  style={{ color: isHovered ? '#ffad11' : '#64748b' }}
+                >
+                  {weight.toFixed(2)}
+                </span>
+              </motion.div>
             );
           })}
         </div>
       </div>
 
       <div className="text-xs text-slate-600 text-center">
-        Causal masking: token at position <span className="text-slate-400">{activeIdx}</span> can only attend to positions ≤ {activeIdx}
+        Causal masking: token at position{' '}
+        <span className="text-slate-400">{activeIdx}</span> can only attend to positions ≤ {activeIdx}
       </div>
     </div>
   );
 }
 
 function computeWeight(queryIdx, keyIdx, total) {
-  // Simulate causal attention: recency bias + slight variation
   const distance = queryIdx - keyIdx;
   const seed = (queryIdx * 31 + keyIdx * 17) % 100;
   const base = Math.exp(-distance * 0.4) * 0.6 + (seed / 100) * 0.35;
   return Math.min(Math.max(base, 0.04), 1);
 }
 
-function AttentionCanvas({ tokens, activeIdx }) {
+function AttentionCanvas({ tokens, activeIdx, hoveredKey }) {
   const canvasRef = useRef(null);
 
-  useEffect(() => {
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !tokens.length) return;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
 
-    // Draw arc connections from activeIdx to earlier tokens
     const n = activeIdx + 1;
-    const slotW = canvas.width / tokens.length;
-    const cy = canvas.height;
+    const slotW = W / tokens.length;
+    const cy = H;
 
     for (let i = 0; i < n; i++) {
       if (i === activeIdx) continue;
@@ -117,15 +143,41 @@ function AttentionCanvas({ tokens, activeIdx }) {
       const x2 = slotW * i + slotW / 2;
       const weight = computeWeight(activeIdx, i, tokens.length);
 
+      const isHovered = hoveredKey === i;
+      const isDimmed = hoveredKey !== null && !isHovered;
+
+      // Arc brightness
+      const alpha = isDimmed ? weight * 0.12 : isHovered ? Math.min(weight * 1.4, 1) : weight * 0.7;
+      const lineW  = isDimmed ? weight * 1.2 : isHovered ? weight * 4 + 1 : weight * 2.5;
+
       ctx.beginPath();
       ctx.moveTo(x1, cy);
       const cpY = cy - 40 - Math.abs(x1 - x2) * 0.35;
       ctx.quadraticCurveTo((x1 + x2) / 2, cpY, x2, cy);
-      ctx.strokeStyle = `rgba(255,173,17,${weight * 0.7})`;
-      ctx.lineWidth = weight * 2.5;
+
+      if (isHovered) {
+        // Glow pass
+        ctx.save();
+        ctx.shadowColor = '#ffad11';
+        ctx.shadowBlur = 12;
+        ctx.strokeStyle = `rgba(255,173,17,${Math.min(alpha + 0.2, 1)})`;
+        ctx.lineWidth = lineW + 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(x1, cy);
+      ctx.quadraticCurveTo((x1 + x2) / 2, cpY, x2, cy);
+      ctx.strokeStyle = `rgba(255,173,17,${alpha})`;
+      ctx.lineWidth = lineW;
       ctx.stroke();
     }
-  }, [activeIdx, tokens]);
+  }, [activeIdx, tokens, hoveredKey]);
+
+  useEffect(() => {
+    draw();
+  }, [draw]);
 
   return (
     <canvas

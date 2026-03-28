@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Cpu, Hash, Grid3x3, GitBranch, BarChart2, BookOpen,
-  ChevronRight, ChevronLeft, Beaker, Sparkles, GitFork
+  ChevronRight, ChevronLeft, Beaker, Sparkles, GitFork, Copy, Check
 } from 'lucide-react';
 import { tokenize } from './tokenizer';
 import StageTokenization from './StageTokenization';
@@ -55,6 +55,7 @@ export default function App() {
   const [tokens, setTokens] = useState(() => tokenize('AI is simple'));
   const [stage, setStage] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Live preview token count — memoised so tokenize() only re-runs when input changes
   const previewCount = useMemo(() => tokenize(input).length, [input]);
@@ -317,7 +318,52 @@ export default function App() {
             className="rounded-2xl border border-slate-800 p-5"
             style={{ background: '#0f172a' }}
           >
-            <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-3">Full Token Pipeline</div>
+            {/* Header row with copy button */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs text-slate-500 uppercase tracking-widest font-semibold">Full Token Pipeline</div>
+              <motion.button
+                onClick={() => {
+                  const ids = tokens.map(t => t.id);
+                  navigator.clipboard.writeText(JSON.stringify(ids));
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                whileTap={{ scale: 0.9 }}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-all duration-200"
+                style={{
+                  borderColor: copied ? '#34d399' : '#334155',
+                  color: copied ? '#34d399' : '#64748b',
+                  background: copied ? 'rgba(52,211,153,0.08)' : 'transparent',
+                }}
+                title="Copy token IDs as JSON array"
+              >
+                <AnimatePresence mode="wait">
+                  {copied ? (
+                    <motion.span
+                      key="check"
+                      className="flex items-center gap-1"
+                      initial={{ opacity: 0, scale: 0.7 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.7 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Check size={12} /> Copied!
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="copy"
+                      className="flex items-center gap-1"
+                      initial={{ opacity: 0, scale: 0.7 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.7 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Copy size={12} /> Copy IDs
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               {tokens.map((t, i) => (
                 <div key={i} className="flex items-center gap-1.5">
